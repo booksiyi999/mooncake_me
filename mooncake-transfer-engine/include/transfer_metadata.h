@@ -1,0 +1,296 @@
+// Copyright 2024 KVCache.AI
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef TRANSFER_METADATA
+#define TRANSFER_METADATA
+
+#include <glog/logging.h>
+#if __has_include(<jsoncpp/json/json.h>)
+#include <jsoncpp/json/json.h>  // Ubuntu
+#else
+#include <json/json.h>  // CentOS
+#endif
+#include <netdb.h>
+
+#include <atomic>
+#include <condition_variable>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <unordered_map>
+
+#include "common.h"
+#include "topology.h"
+
+namespace mooncake {
+struct MetadataStoragePlugin;
+struct HandShakePlugin;
+
+#define P2PHANDSHAKE "P2PHANDSHAKE"
+
+class TransferMetadata {
+   public:
+    struct DeviceDesc {
+        std::string name;
+        uint16_t lid;
+        std::string gid;
+        std::string eid;  // for ub
+
+        bool operator==(const DeviceDesc &other) const = default;
+    };
+
+    struct BufferDesc {
+        std::string name;
+        uint64_t addr;
+        uint64_t length;
+        int32_t device_id = -1;  // CUDA device for NCCL buffers
+#ifdef ENABLE_MULTI_PROTOCOL
+        std::string protocol;  // for multi-protocol mode (cxl/tcp/rdma)
+#endif
+        // EFA/CXI's libfabric provider returns 64-bit MR keys (fi_mr_key()), so
+        // these must be 64-bit wide to avoid truncation. RDMA verbs keys are
+        // 32-bit and the non-EFA/CXI path keeps them as such.
+#if defined(USE_EFA) || defined(USE_CXI)
+        using mr_key_t = uint64_t;
+#else
+        using mr_key_t = uint32_t;
+#endif
+        std::vector<mr_key_t> lkey;         // for rdma/efa
+        std::vector<mr_key_t> rkey;         // for rdma/efa
+        std::string shm_name;               // for nvlink and hip
+        uint64_t offset;                    // for cxl
+        std::vector<std::string> tseg;      // for ub/urma
+        std::vector<uint32_t> l_seg_index;  // for ub/urma
+
+        bool operator==(const BufferDesc &other) const = default;
+    };
+
+    struct NVMeoFBufferDesc {
+        std::string file_path;
+        uint64_t length;
+        std::unordered_map<std::string, std::string> local_path_map;
+
+        bool operator==(const NVMeoFBufferDesc &other) const = default;
+    };
+
+    struct RankInfoDesc {
+        uint64_t rankId = 0xFFFFFFFF;  // rank id, user rank
+        std::string hostIp;
+        uint64_t hostPort;
+        uint64_t deviceLogicId;
+        uint64_t devicePhyId;
+        uint64_t deviceType = 5;  // default
+        std::string deviceIp;
+        uint64_t devicePort;
+        uint64_t pid;
+        std::vector<std::string> endpoints;
+
+        bool operator==(const RankInfoDesc &other) const = default;
+    };
+
+    using SegmentID = uint64_t;
+
+    struct SegmentDesc {
+        std::string name;
+        std::string protocol;
+        // this is for rdma/shm/urma
+        std::vector<DeviceDesc> devices;
+        Topology topology;
+        std::vector<BufferDesc> buffers;
+        // this is for nvmeof.
+        std::vector<NVMeoFBufferDesc> nvmeof_buffers;
+        // this is for cxl.
+        std::string cxl_name;
+        uint64_t cxl_base_addr;
+        // TODO : make these two a union or a std::variant
+        std::string timestamp;
+        // this is for ascend
+        RankInfoDesc rank_info;
+
+        int tcp_data_port;
+        // TCP data-plane protocol version advertised by this segment's
+        // server. v2 adds acknowledged WRITE framing and status-prefixed
+        // READ responses (#2086); absent/1 = legacy unacknowledged framing.
+        int tcp_proto_version{1};
+
+        // In dual-NIC setups (MC_RDMA_BIND_ADDRESS), the RDMA-reachable
+        // address may differ from the TCP-routable segment name.  When
+        // non-empty, NIC paths are constructed using this value instead
+        // of `name`.
+        std::string rdma_server_name;
+
+        // Returns the server name to use for NIC path construction.
+        // Uses rdma_server_name when available, otherwise falls back
+        // to name.
+        const std::string &nicPathServerName() const {
+            return rdma_server_name.empty() ? name : rdma_server_name;
+        }
+
+        bool operator==(const SegmentDesc &other) const;
+        bool operator!=(const SegmentDesc &other) const {
+            return !(*this == other);
+        }
+        void dump() const;
+    };
+
+    struct RpcMetaDesc {
+        std::string ip_or_host_name;
+        uint16_t rpc_port;
+#ifdef USE_BAREX
+        uint16_t barex_port;
+#endif
+        int sockfd;  // local cache
+    };
+
+    struct HandShakeDesc {
+        std::string payload;  // opaque transport-specific handshake data
+        std::string local_nic_path;
+        uint16_t local_lid = 0;
+        std::string local_gid;
+        std::string peer_nic_path;
+#ifdef USE_UB
+        std::vector<uint32_t> jetty_num;  // for ub/urma
+#endif
+#ifdef USE_BAREX
+        uint16_t barex_port;
+#endif
+        std::vector<uint32_t> qp_num;
+        bool ready_ack = false;
+        // Capability marker. Encoded only by transports that opt into
+        // ready_ack; decoded from field presence to detect peer support.
+        bool ready_ack_supported = false;
+        std::string reply_msg;  // on error
+#ifdef USE_EFA
+        std::string efa_addr;  // EFA endpoint address (hex encoded)
+#endif
+#ifdef USE_CXI
+        std::string cxi_addr;
+#endif
+    };
+
+    struct NotifyDesc {
+        std::string name;
+        std::string notify_msg;
+    };
+
+   public:
+    TransferMetadata(const std::string &conn_string);
+
+    ~TransferMetadata();
+
+    std::shared_ptr<SegmentDesc> getSegmentDescByName(
+        const std::string &segment_name, bool force_update = false);
+
+    std::shared_ptr<SegmentDesc> getSegmentDescByID(SegmentID segment_id,
+                                                    bool force_update = false);
+
+    int updateLocalSegmentDesc(SegmentID segment_id = LOCAL_SEGMENT_ID);
+
+    int updateSegmentDesc(const std::string &segment_name,
+                          const SegmentDesc &desc);
+
+    std::shared_ptr<SegmentDesc> getSegmentDesc(
+        const std::string &segment_name);
+
+    SegmentID getSegmentID(const std::string &segment_name);
+
+    int syncSegmentCache(const std::string &segment_name);
+
+    int removeSegmentDesc(const std::string &segment_name);
+
+    int addLocalMemoryBuffer(const BufferDesc &buffer_desc,
+                             bool update_metadata);
+
+    int removeLocalMemoryBuffer(void *addr, bool update_metadata);
+
+    int addLocalSegment(SegmentID segment_id, const std::string &segment_name,
+                        std::shared_ptr<SegmentDesc> &&desc);
+
+    int removeLocalSegment(const std::string &segment_name);
+
+    int addRpcMetaEntry(const std::string &server_name, RpcMetaDesc &desc);
+
+    int removeRpcMetaEntry(const std::string &server_name);
+
+    // Re-publish the local RPC meta entry to the HTTP metadata server.
+    int rePublishRpcMetaEntry(const std::string &server_name);
+
+    int getRpcMetaEntry(const std::string &server_name, RpcMetaDesc &desc);
+    int getNotifies(std::vector<NotifyDesc> &notifies);
+
+    const RpcMetaDesc &localRpcMeta() const { return local_rpc_meta_; }
+
+    using OnReceiveHandShake = std::function<int(const HandShakeDesc &peer_desc,
+                                                 HandShakeDesc &local_desc)>;
+    int startHandshakeDaemon(OnReceiveHandShake on_receive_handshake,
+                             uint16_t listen_port, int sockfd);
+
+    int sendHandshake(const std::string &peer_server_name,
+                      const HandShakeDesc &local_desc,
+                      HandShakeDesc &peer_desc);
+
+    int sendNotify(const std::string &peer_server_name,
+                   const NotifyDesc &local_desc, NotifyDesc &peer_desc);
+    int sendProbe(const std::string &peer_server_name);
+
+    void dumpMetadataContent(const std::string &segment_name = "",
+                             uint64_t offset = 0, uint64_t length = 0);
+
+    void dumpMetadataContentUnlocked();
+
+   private:
+    int encodeSegmentDesc(const SegmentDesc &desc, Json::Value &segmentJSON);
+    std::shared_ptr<TransferMetadata::SegmentDesc> decodeSegmentDesc(
+        Json::Value &segmentJSON, const std::string &segment_name);
+    int receivePeerMetadata(const Json::Value &peer_json,
+                            Json::Value &local_json);
+    int receivePeerNotify(const Json::Value &peer_json,
+                          Json::Value &local_json);
+    int receivePeerProbe(const Json::Value &peer_json, Json::Value &local_json);
+    std::string getFullMetadataKey(const std::string &segment_name) const;
+    void startMetadataRefreshPollingIfNeeded();
+    void stopMetadataRefreshPollingThread();
+    void metadataRefreshPollingLoop(uint64_t refresh_interval_seconds);
+
+    bool p2p_handshake_mode_{false};
+    std::string common_key_prefix_;
+    std::string rpc_meta_prefix_;
+    // local cache
+    RWSpinlock segment_lock_;
+    std::unordered_map<uint64_t, std::shared_ptr<SegmentDesc>>
+        segment_id_to_desc_map_;
+    std::unordered_map<std::string, uint64_t> segment_name_to_id_map_;
+
+    RWSpinlock notify_lock_;
+    std::vector<NotifyDesc> notifys;
+    RWSpinlock rpc_meta_lock_;
+    std::unordered_map<std::string, RpcMetaDesc> rpc_meta_map_;
+    RpcMetaDesc local_rpc_meta_;
+
+    std::atomic<SegmentID> next_segment_id_;
+
+    std::shared_ptr<HandShakePlugin> handshake_plugin_;
+    std::shared_ptr<MetadataStoragePlugin> storage_plugin_;
+    std::mutex metadata_refresh_mutex_;
+    std::condition_variable metadata_refresh_cv_;
+    std::atomic<bool> should_stop_metadata_refresh_thread_{false};
+    std::thread metadata_refresh_thread_;
+};
+
+}  // namespace mooncake
+
+#endif  // TRANSFER_METADATA

@@ -1,0 +1,116 @@
+# Contributing to Mooncake
+
+
+Thank you for your interest in contributing to Mooncake! Our community warmly welcomes everyone and values all contributions, whether big or small. Motivated by the [contribution guidelines](https://docs.vllm.ai/en/latest/contributing/overview.html) in the vLLM community, here are several ways you can get involved in the project:
+
+- Identify and report any issues or bugs.
+- Request or add support for a new component of Mooncake (such as a new transport class).
+- Suggest or implement new features.
+- Improve documentation or contribute a how-to guide.
+- More unit tests and evaluation scripts.
+
+
+# Contribution Guidelines
+
+## Pull Requests & Code Reviews
+
+### PR Title and Classification
+
+Use a prefixed PR title to indicate the type or module affected by the changes.
+Prefer one of the following documented prefixes:
+
+- ``[Bugfix]`` for bug fixes.
+- ``[CI/Build]`` for build or continuous integration improvements.
+- ``[Doc]`` for documentation fixes and improvements.
+- ``[Integration]`` for changes in the ``mooncake-integration``.
+- ``[P2PStore]`` for changes in the ``mooncake-p2p-store``.
+- ``[Store]`` for changes in the ``mooncake-store``.
+- ``[TransferEngine]`` for changes in the ``mooncake-transfer-engine``.
+- ``[Misc]`` for PRs that do not fit the above categories. Please use this
+  sparingly.
+
+The project history also contains common aliases and module prefixes. Use these
+when they better match the change scope: ``[Bug fix]``, ``[Build]``, ``[CI]``,
+``[Docs]``, ``[EP]``, ``[Feature]``, ``[MUSA]``, ``[PG]``, ``[TE]``,
+``[TENT]``, and ``[Wheel]``.
+
+### RFC Discussion
+
+For major architectural changes (>500 LOC excluding tests), we would expect a GitHub issue (RFC) discussing the technical design and justification.
+
+
+### Development Workflow & Pre-commit Hooks
+
+Mooncake uses [pre-commit](https://pre-commit.com/) to enforce consistent formatting and lightweight static checks across Python, C++ and CMake sources.
+
+#### Included Hooks
+| Type | Tool | Purpose |
+|------|------|---------|
+| Generic | trailing-whitespace / end-of-file-fixer | Basic hygiene |
+| Project | `./scripts/code_format.sh --staged` | Format staged C/C++ changes before commit |
+| Python | ruff / ruff-format | Lint + format (includes import sorting) |
+| Spelling | codespell | Catch common typos (ignores domain-specific words) |
+| CMake | cmake-format | Keep build scripts readable |
+| Meta | check-yaml / check-merge-conflict / check-added-large-files | Prevent bad commits |
+
+#### Setup
+```bash
+pip install -r requirements.txt
+pre-commit install
+```
+
+After installation, every commit formats only the added or modified lines in
+staged C/C++ files. If the hook rewrites a file, review and re-stage it before
+committing again. Use `./scripts/code_format.sh --all` only when intentionally
+formatting the whole project.
+
+#### Usage
+Run hooks on all files (the first run installs hook environments). The C/C++
+hook remains limited to staged line ranges; use `./scripts/code_format.sh --all`
+for an intentional whole-project C/C++ format:
+```bash
+pre-commit run --all-files
+```
+Update hook versions occasionally:
+```bash
+pre-commit autoupdate
+git add .pre-commit-config.yaml
+git commit -m "chore: pre-commit autoupdate"
+```
+
+If clang-format or its `git-clang-format` helper is missing, install the LLVM
+20 package (Ubuntu example):
+```bash
+sudo apt-get update && sudo apt-get install -y clang-format-20
+```
+
+You can temporarily skip hooks:
+```bash
+git commit -m "wip: skipping hooks" --no-verify
+```
+But please avoid using `--no-verify` for routine commits to keep code quality high.
+
+#### CI Integration
+GitHub pull-request and push checks validate only added or modified C/C++ line
+ranges relative to the selected base revision. This avoids failing a focused
+change solely because an otherwise untouched part of the same file has older
+formatting. Changed-line selection is delegated to LLVM's `git-clang-format`
+helper so the local hook and CI use the same Git-aware behavior.
+
+The configuration also supports automatic fixing PRs via `pre-commit.ci` if
+enabled. To activate, add the repository in the pre-commit.ci dashboard; no
+further changes are needed.
+
+
+## Code Quality
+
+The PR needs to meet the following code quality standards:
+
+- We adhere to [Google Python style guide](https://google.github.io/styleguide/pyguide.html) and [Google C++ style guide](https://google.github.io/styleguide/cppguide.html).
+- The code needs to be well-documented to ensure future contributors can easily understand the code.
+- Include sufficient tests to ensure the project stays correct and robust. This includes both unit tests and integration tests.
+- Please add documentation to ``doc/`` if the PR modifies the user-facing behaviors of Mooncake. It helps Mooncake users understand and utilize the new features or changes.
+
+
+**Finally, thank you for taking the time to read these guidelines and for your interest in contributing to Mooncake.
+All of your contributions help make Mooncake a great tool and community for everyone!**

@@ -1,0 +1,30 @@
+# Mooncake project - line ending normalization
+# Prevents CRLF (Windows) from breaking shell scripts and build files on Linux.
+
+# Auto-detect text vs binary; normalize text files
+* text=auto
+
+# Shell scripts must ALWAYS be LF on disk (CRLF breaks them on Linux)
+*.sh text eol=lf
+
+# Build system files: keep LF
+*.cmake text eol=lf
+CMakeLists.txt text eol=lf
+Makefile text eol=lf
+*.mk text eol=lf
+
+# Python: LF (keeps hashes/execution predictable across OS)
+*.py text eol=lf
+
+# Markdown / docs / config: LF
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+
+# Binary files: never touch
+*.so binary
+*.a binary
+*.o binary
+*.pyc binary
