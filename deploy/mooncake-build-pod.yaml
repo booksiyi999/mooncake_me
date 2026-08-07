@@ -1,0 +1,97 @@
+# deploy/mooncake-build-pod.yaml
+# Mooncake 编译 Pod（openEuler + Ascend 910B）
+# 用途：持续运行的编译环境，源码通过 git clone 获取，方便频繁改动后重新编译
+#
+# 部署：kubectl apply -f deploy/mooncake-build-pod.yaml
+# 进入：kubectl exec -it mooncake-build-910b -- /bin/bash
+#
+# 注意：
+# - 宿主机必须已安装 CANN Toolkit（/usr/local/Ascend/ascend-toolkit）
+# - 如需 NPU 运行时测试（非纯编译），需要 K8s 安装 Ascend device plugin 并取消下面 NPU 相关注释
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mooncake-build-910b
+  labels:
+    app: mooncake-build
+spec:
+  # ---- 如需 RDMA 传输测试，取消下面两行注释 ----
+  # hostNetwork: true
+  # dnsPolicy: ClusterFirstWithHostNet
+
+  containers:
+    - name: mooncake
+      image: mooncake-openeuler:latest
+      imagePullPolicy: IfNotPresent
+      command: ["/bin/bash", "-c", "sleep infinity"]
+      workingDir: /workspace
+
+      # ---- 环境变量 ----
+      env:
+        - name: ASCEND_HOME_PATH
+          value: "/usr/local/Ascend/ascend-toolkit/latest"
+        - name: CMAKE_PREFIX_PATH
+          value: "/usr/local"
+
+      # ---- 挂载 CANN Toolkit（只读）----
+      volumeMounts:
+        - name: ascend-toolkit
+          mountPath: /usr/local/Ascend/ascend-toolkit
+          readOnly: true
+        - name: ascend-driver
+          mountPath: /usr/local/Ascend/driver
+          readOnly: true
+        - name: hccn-conf
+          mountPath: /etc/hccn.conf
+          readOnly: true
+
+      # ---- 如需 NPU 运行时测试，取消下面这段注释 ----
+      #   - name: npu-dev0
+      #     mountPath: /dev/davinci0
+      #   - name: npu-dev1
+      #     mountPath: /dev/davinci1
+      #   - name: npu-hdc
+      #     mountPath: /dev/hisi_hdc
+      #   - name: npu-mgmt
+      #     mountPath: /dev/davinci_manager
+      # resources:
+      #   limits:
+      #     huawei.com/Ascend910: "2"
+      #   requests:
+      #     huawei.com/Ascend910: "2"
+
+  # ---- 卷定义 ----
+  volumes:
+    - name: ascend-toolkit
+      hostPath:
+        path: /usr/local/Ascend/ascend-toolkit
+        type: Directory
+    - name: ascend-driver
+      hostPath:
+        path: /usr/local/Ascend/driver
+        type: Directory
+    - name: hccn-conf
+      hostPath:
+        path: /etc/hccn.conf
+        type: FileOrCreate
+
+    # ---- 如需 NPU 运行时测试，取消下面这段注释 ----
+    # - name: npu-dev0
+    #   hostPath:
+    #     path: /dev/davinci0
+    #     type: CharDevice
+    # - name: npu-dev1
+    #   hostPath:
+    #     path: /dev/davinci1
+    #     type: CharDevice
+    # - name: npu-hdc
+    #   hostPath:
+    #     path: /dev/hisi_hdc
+    #     type: CharDevice
+    # - name: npu-mgmt
+    #   hostPath:
+    #     path: /dev/davinci_manager
+    #     type: CharDevice
+
+  restartPolicy: Never
