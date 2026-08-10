@@ -22,8 +22,8 @@ spec:
 
   containers:
     - name: mooncake
-      image: mooncake-openeuler:latest
-      imagePullPolicy: IfNotPresent
+      image: localhost/mooncake-openeuler:latest
+      imagePullPolicy: Never
       command: ["/bin/bash", "-c", "sleep infinity"]
       workingDir: /workspace
 
