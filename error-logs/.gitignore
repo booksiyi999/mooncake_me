@@ -1,0 +1,2 @@
+# 允许 error-logs 下所有文件被 git 追踪（覆盖上级 .gitignore）
+!*
