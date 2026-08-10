@@ -22,7 +22,7 @@ RUN dnf makecache && \
         grpc-devel grpc-plugins protobuf-devel protobuf-compiler \
         liburing-devel jemalloc-devel msgpack-devel \
         libbsd-devel elfutils-libelf-devel && \
-    pip3 install cmake && \
+    pip3 install "cmake==3.31.6" && \
     rm -rf /var/cache/dnf
 
 # ---------- 编译安装 yaml-cpp（openEuler 仓库可能缺失 cmake config）----------
