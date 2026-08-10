@@ -3,7 +3,7 @@
 # 用途：提供 Mooncake 编译所需的所有系统依赖，CANN/NPU 设备运行时从宿主机挂载
 # 构建：docker build -t mooncake-openeuler:latest -f docker/mooncake-openeuler.Dockerfile .
 
-FROM openeuler/openeuler:22.03-lts
+FROM docker.io/openeuler/openeuler:22.03-lts
 
 ENV LC_ALL=C.UTF-8 \
     LANG=C.UTF-8
