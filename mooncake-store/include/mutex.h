@@ -116,38 +116,40 @@ class CAPABILITY("shared_mutex") SharedMutex {
     const SharedMutex& operator!() const { return *this; }
 };
 
-// Simple spin lock implementation using std::atomic_flag for exclusive locking
-// only.
+// >>> [MOD: GCC10 compat] SpinLock 原实现用 std::atomic_flag，其 test() 是 C++20 API，
+// >>> [MOD: GCC10 compat] openEuler 22.03 的 GCC 10 不支持。改为 std::atomic<bool>（C++11 起可用），
+// >>> [MOD: GCC10 compat] 语义等价：exchange(true)=test_and_set()，store(false)=clear()，load()=test()。
 class CAPABILITY("mutex") SpinLock {
    private:
-    std::atomic_flag flag = ATOMIC_FLAG_INIT;
+    std::atomic<bool> flag{false};  // [MOD: GCC10 compat] 原: std::atomic_flag flag = ATOMIC_FLAG_INIT;
 
    public:
     // Acquire/lock the spinlock.
     void lock() ACQUIRE() {
         // Fast path: try to acquire directly
-        if (!flag.test_and_set(std::memory_order_acquire)) return;
+        if (!flag.exchange(true, std::memory_order_acquire)) return;  // [MOD: GCC10 compat] 原: test_and_set
 
         // Slow path: spin wait with relaxed loads, acquire on success
         do {
-            while (flag.test(std::memory_order_relaxed)) {
+            while (flag.load(std::memory_order_relaxed)) {  // [MOD: GCC10 compat] 原: test
                 PAUSE();
             }
-        } while (flag.test_and_set(std::memory_order_acquire));
+        } while (flag.exchange(true, std::memory_order_acquire));  // [MOD: GCC10 compat] 原: test_and_set
     }
 
     // Try to acquire the spinlock. Returns true on success, and false on
     // failure.
     bool try_lock() TRY_ACQUIRE(true) {
-        return !flag.test_and_set(std::memory_order_acquire);
+        return !flag.exchange(true, std::memory_order_acquire);  // [MOD: GCC10 compat] 原: test_and_set
     }
 
     // Release the spinlock.
-    void unlock() RELEASE() { flag.clear(std::memory_order_release); }
+    void unlock() RELEASE() { flag.store(false, std::memory_order_release); }  // [MOD: GCC10 compat] 原: clear
 
     // Check whether the spinlock is locked.
-    bool is_locked() const { return flag.test(std::memory_order_relaxed); }
+    bool is_locked() const { return flag.load(std::memory_order_relaxed); }  // [MOD: GCC10 compat] 原: test
 };
+// <<< [MOD: GCC10 compat] 修改结束
 
 // MutexLocker is an RAII class that acquires a mutex in its constructor, and
 // releases it in its destructor.
