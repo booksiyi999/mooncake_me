@@ -25,6 +25,14 @@ RUN dnf makecache && \
     pip3 install "cmake==3.31.6" && \
     rm -rf /var/cache/dnf
 
+# ---------- 升级 GCC 到 11+（std::atomic_flag::test() 需要 GCC 11）----------
+RUN dnf install -y --skip-broken gcc-11 gcc-c++-11 2>/dev/null || true; \
+    if command -v gcc-11 >/dev/null 2>&1; then \
+        update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 60 2>/dev/null || true; \
+        update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 60 2>/dev/null || true; \
+    fi; \
+    gcc --version | head -1
+
 # ---------- 编译安装 yaml-cpp（openEuler 仓库可能缺失 cmake config）----------
 WORKDIR /deps
 RUN git clone https://github.com/jbeder/yaml-cpp.git --depth 1 && \
@@ -36,6 +44,13 @@ RUN git clone https://github.com/jbeder/yaml-cpp.git --depth 1 && \
 RUN git clone https://github.com/gflags/gflags.git -b v2.2.2 --depth 1 && \
     cd gflags && mkdir build && cd build && \
     cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j$(nproc) && make install
+
+# ---------- 编译安装 msgpack-c（openEuler 仓库缺失 msgpack-devel）----------
+RUN git clone https://github.com/msgpack/msgpack-c.git --depth 1 && \
+    cd msgpack-c && mkdir build && cd build && \
+    cmake .. -DMSGPACK_BUILD_TESTS=OFF -DMSGPACK_BUILD_EXAMPLES=OFF \
+        -DCMAKE_INSTALL_PREFIX=/usr/local && \
     make -j$(nproc) && make install
 
 # ---------- 编译安装 yalantinglibs ----------
