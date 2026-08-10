@@ -1,0 +1,85 @@
+# =============================================================================
+# v0310/mooncake-build-0310.yaml
+# Mooncake v0.3.10 编译 Pod（openEuler + Ascend 910B，与新版完全隔离）
+#
+# 隔离设计：
+#  - 镜像名：localhost/mooncake-v0310:latest（新版是 mooncake-openeuler）
+#  - Pod 名：mooncake-build-0310（新版是 mooncake-build-910b）
+#  - 源码克隆到 /workspace/mooncake-v0310（新版是 /workspace/mooncake_me）
+#
+# 部署：kubectl apply -f v0310/mooncake-build-0310.yaml
+# 进入：kubectl exec -it mooncake-build-0310 -- /bin/bash
+# =============================================================================
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mooncake-build-0310
+  labels:
+    app: mooncake-build
+    version: v0.3.10
+spec:
+  # ---- 如需 RDMA 传输测试，取消下面两行注释 ----
+  # hostNetwork: true
+  # dnsPolicy: ClusterFirstWithHostNet
+
+  containers:
+    - name: mooncake
+      image: localhost/mooncake-v0310:latest
+      imagePullPolicy: Never
+      command: ["/bin/bash", "-c", "sleep infinity"]
+      workingDir: /workspace
+
+      env:
+        - name: ASCEND_HOME_PATH
+          value: "/usr/local/Ascend/ascend-toolkit/latest"
+        - name: CMAKE_PREFIX_PATH
+          value: "/usr/local"
+
+      # ---- 挂载整个 CANN 目录（只读，保证符号链接完整解析）----
+      volumeMounts:
+        - name: ascend
+          mountPath: /usr/local/Ascend
+          readOnly: true
+        - name: hccn-conf
+          mountPath: /etc/hccn.conf
+          readOnly: true
+
+      # ---- 如需 NPU 运行时测试，取消下面这段注释 ----
+      #   - name: npu-dev0
+      #     mountPath: /dev/davinci0
+      #   - name: npu-hdc
+      #     mountPath: /dev/hisi_hdc
+      #   - name: npu-mgmt
+      #     mountPath: /dev/davinci_manager
+      # resources:
+      #   limits:
+      #     huawei.com/Ascend910: "1"
+      #   requests:
+      #     huawei.com/Ascend910: "1"
+
+  volumes:
+    - name: ascend
+      hostPath:
+        path: /usr/local/Ascend
+        type: Directory
+    - name: hccn-conf
+      hostPath:
+        path: /etc/hccn.conf
+        type: FileOrCreate
+
+    # ---- 如需 NPU 运行时测试，取消下面这段注释 ----
+    # - name: npu-dev0
+    #   hostPath:
+    #     path: /dev/davinci0
+    #     type: CharDevice
+    # - name: npu-hdc
+    #   hostPath:
+    #     path: /dev/hisi_hdc
+    #     type: CharDevice
+    # - name: npu-mgmt
+    #   hostPath:
+    #     path: /dev/davinci_manager
+    #     type: CharDevice
+
+  restartPolicy: Never
