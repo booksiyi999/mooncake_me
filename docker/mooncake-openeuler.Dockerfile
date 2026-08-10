@@ -27,7 +27,7 @@ RUN dnf makecache && \
 
 # ---------- 编译安装 yaml-cpp（openEuler 仓库可能缺失 cmake config）----------
 WORKDIR /deps
-RUN git clone https://github.com/jbeder/yaml-cpp.git -b yaml-cpp-0.8.0 --depth 1 && \
+RUN git clone https://github.com/jbeder/yaml-cpp.git --depth 1 && \
     cd yaml-cpp && mkdir build && cd build && \
     cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local && \
     make -j$(nproc) && make install
