@@ -34,13 +34,10 @@ spec:
         - name: CMAKE_PREFIX_PATH
           value: "/usr/local"
 
-      # ---- 挂载 CANN Toolkit（只读）----
+      # ---- 挂载整个 CANN 目录（只读，保证符号链接完整解析）----
       volumeMounts:
-        - name: ascend-toolkit
-          mountPath: /usr/local/Ascend/ascend-toolkit
-          readOnly: true
-        - name: ascend-driver
-          mountPath: /usr/local/Ascend/driver
+        - name: ascend
+          mountPath: /usr/local/Ascend
           readOnly: true
         - name: hccn-conf
           mountPath: /etc/hccn.conf
@@ -63,13 +60,9 @@ spec:
 
   # ---- 卷定义 ----
   volumes:
-    - name: ascend-toolkit
+    - name: ascend
       hostPath:
-        path: /usr/local/Ascend/ascend-toolkit
-        type: Directory
-    - name: ascend-driver
-      hostPath:
-        path: /usr/local/Ascend/driver
+        path: /usr/local/Ascend
         type: Directory
     - name: hccn-conf
       hostPath:
