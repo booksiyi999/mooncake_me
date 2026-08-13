@@ -9,6 +9,13 @@
 #
 # 部署：kubectl apply -f v0310/mooncake-build-0310.yaml
 # 进入：kubectl exec -it mooncake-build-0310 -- /bin/bash
+#
+# 关键点（踩坑总结）：
+#  - 必须 securityContext.privileged: true：容器内驱动访问 NPU 设备需要特权，
+#    否则运行报 "get platform info failed, drvErr=4" / "Failed to initialize ACL"。
+#  - 双卡测试：hostPath 挂 davinci0/1 + resources 申请 huawei.com/Ascend910: "2"
+#    （需集群已装 Ascend device plugin；未装可去掉 resources 只用 hostPath）。
+#  - Pod 是临时的：重建后 /workspace 源码和编译产物会丢，需重新 clone + 编译。
 # =============================================================================
 ---
 apiVersion: v1
@@ -29,6 +36,11 @@ spec:
       imagePullPolicy: Never
       command: ["/bin/bash", "-c", "sleep infinity"]
       workingDir: /workspace
+
+      # ---- 必须 privileged：容器内驱动访问 NPU 设备需要特权，
+      #      否则运行时报 get platform info failed, drvErr=4 / aclInit 失败 ----
+      securityContext:
+        privileged: true
 
       env:
         - name: ASCEND_HOME_PATH

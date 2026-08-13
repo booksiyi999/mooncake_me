@@ -38,9 +38,14 @@ RUN git clone https://github.com/jbeder/yaml-cpp.git --depth 1 && \
     make -j$(nproc) && make install
 
 # ---------- 编译安装 gflags（保证提供 gflags-config.cmake）----------
+# 必须用 -DBUILD_SHARED_LIBS=ON 编成共享库：
+# 系统仓库还装了 gflags-devel（RPM 共享版），若 /usr/local 这份编成静态库，
+# 二进制会把"静态(/deps/gflags) + 共享(RPM)"两套 gflags 同时带进进程，
+# 运行时报: flag 'flagfile' was defined more than once ... Aborted (core dumped)
+# 编成共享库后，运行时把 /usr/local/lib 放 LD_LIBRARY_PATH 最前即可只加载一份。
 RUN git clone https://github.com/gflags/gflags.git -b v2.2.2 --depth 1 && \
     cd gflags && mkdir build && cd build && \
-    cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    cmake .. -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr/local && \
     make -j$(nproc) && make install
 
 # ---------- 编译安装 yalantinglibs 0.5.7（TE 的 RPC 依赖）----------

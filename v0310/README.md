@@ -16,9 +16,13 @@ v0.3.10 的 **Transfer Engine 部分是 GCC 10 兼容的**，只要**只编译 T
 
 | 文件 | 作用 |
 |------|------|
-| `mooncake-v0310.Dockerfile` | v0.3.10 编译环境镜像（openEuler + 依赖 + yalantinglibs 0.5.7） |
-| `mooncake-build-0310.yaml` | v0.3.10 独立 Pod（与新版 Pod 名字不同，互不影响） |
-| `USAGE.md` | **完整使用手册**（构建 / 编译 / 运行 / 排错） |
+| `mooncake-v0310.Dockerfile` | v0.3.10 编译环境镜像（openEuler + 依赖 + yalantinglibs 0.5.7；gflags 已编成共享库，避免 flagfile 冲突） |
+| `mooncake-build-0310.yaml` | v0.3.10 独立 Pod（与新版 Pod 名字不同，互不影响；已内置 `privileged: true` + 双卡 NPU 挂载） |
+| `USAGE.md` | **完整使用手册**（构建 / 编译 / 运行 / 排错 / 版本同步） |
+
+> 双卡测试已在 openEuler + Ascend 910B 上验证通过。关键前提：
+> - Pod 需 `privileged: true`（容器内驱动访问 NPU，否则报 `drvErr=4` / `aclInit` 失败）
+> - 运行前 `source set_env.sh` + `export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH`
 
 ## 隔离对照
 
