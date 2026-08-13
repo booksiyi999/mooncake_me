@@ -44,19 +44,20 @@ spec:
         - name: hccn-conf
           mountPath: /etc/hccn.conf
           readOnly: true
-
-      # ---- 如需 NPU 运行时测试，取消下面这段注释 ----
-      #   - name: npu-dev0
-      #     mountPath: /dev/davinci0
-      #   - name: npu-hdc
-      #     mountPath: /dev/hisi_hdc
-      #   - name: npu-mgmt
-      #     mountPath: /dev/davinci_manager
-      # resources:
-      #   limits:
-      #     huawei.com/Ascend910: "1"
-      #   requests:
-      #     huawei.com/Ascend910: "1"
+        # ---- 双卡 NPU 运行时测试 ----
+        - name: npu-dev0
+          mountPath: /dev/davinci0
+        - name: npu-dev1
+          mountPath: /dev/davinci1
+        - name: npu-hdc
+          mountPath: /dev/hisi_hdc
+        - name: npu-mgmt
+          mountPath: /dev/davinci_manager
+      resources:
+        limits:
+          huawei.com/Ascend910: "2"
+        requests:
+          huawei.com/Ascend910: "2"
 
   volumes:
     - name: ascend
@@ -67,19 +68,21 @@ spec:
       hostPath:
         path: /etc/hccn.conf
         type: FileOrCreate
-
-    # ---- 如需 NPU 运行时测试，取消下面这段注释 ----
-    # - name: npu-dev0
-    #   hostPath:
-    #     path: /dev/davinci0
-    #     type: CharDevice
-    # - name: npu-hdc
-    #   hostPath:
-    #     path: /dev/hisi_hdc
-    #     type: CharDevice
-    # - name: npu-mgmt
-    #   hostPath:
-    #     path: /dev/davinci_manager
-    #     type: CharDevice
+    - name: npu-dev0
+      hostPath:
+        path: /dev/davinci0
+        type: CharDevice
+    - name: npu-dev1
+      hostPath:
+        path: /dev/davinci1
+        type: CharDevice
+    - name: npu-hdc
+      hostPath:
+        path: /dev/hisi_hdc
+        type: CharDevice
+    - name: npu-mgmt
+      hostPath:
+        path: /dev/davinci_manager
+        type: CharDevice
 
   restartPolicy: Never
