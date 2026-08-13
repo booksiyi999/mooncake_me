@@ -369,3 +369,70 @@ kubectl apply -f v0310/mooncake-build-0310.yaml
 
 > 若 `git checkout feature/v0310` 报 `pathspec did not match`，先 `git fetch origin`，
 > 再用 `git checkout -b feature/v0310 origin/feature/v0310`。
+
+---
+
+## 八、常用 Git 命令速查
+
+**仓库状态**
+
+```bash
+git status -sb                  # 当前分支 + 未提交改动 + 与远程同步情况
+git log --oneline -5            # 最近 5 条提交
+git diff                        # 未暂存改动的内容
+git diff --cached               # 已暂存改动的内容
+git branch -r                   # 查看远程分支
+```
+
+**提交与推送**
+
+```bash
+git add <文件>                  # 加入暂存区（可多个文件；git add . 表示全部）
+git commit -m "说明"             # 提交
+git push origin <分支>           # 推送到远程分支
+git push -u origin <分支>        # 首次推送并设置上游跟踪（之后可直接 git push）
+```
+
+**分支操作**
+
+```bash
+git branch <新分支>              # 创建本地分支（不切换）
+git checkout -b <新分支>         # 创建并切换到新分支
+git checkout <分支>              # 切换分支
+git branch -m <旧名> <新名>      # 重命名本地分支
+git push origin --delete <分支>  # 删除远程分支
+git branch -D <分支>             # 删除本地分支（-d 仅当已合并时可用）
+```
+
+**远程同步**
+
+```bash
+git fetch origin                 # 拉取远程最新信息（不合并）
+git pull origin <分支>           # 拉取并合并远程分支
+git pull --rebase origin <分支>  # 拉取并变基（保持提交历史线性）
+git remote -v                    # 查看远程仓库地址
+```
+
+**撤销/回退（慎用 reset）**
+
+```bash
+git restore <文件>               # 丢弃未暂存的改动
+git restore --staged <文件>      # 取消暂存（保留改动）
+git reset --hard HEAD            # 回退到最近一次提交（会丢改动！）
+git log --oneline                # 找目标提交号
+git reset --hard <提交号>        # 回退到指定提交（会丢改动！）
+```
+
+**推送被拒（远程有新提交）**
+
+```bash
+git pull origin <分支> --rebase   # 先拉取变基
+git push origin <分支>            # 再推送
+```
+
+**报 `pathspec ... did not match`（本地还没有该分支）**
+
+```bash
+git fetch origin
+git checkout -b <分支> origin/<分支>
+```
