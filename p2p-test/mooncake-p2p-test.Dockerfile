@@ -19,11 +19,18 @@ FROM docker.io/openeuler/openeuler:22.03-lts-sp3
 ENV LC_ALL=C.UTF-8 \
     LANG=C.UTF-8
 
-# ---------- 系统 GCC 10（宿主机一致，不影响）+ gcc-toolset-12（容器内用） ----------
-# gcc-toolset-12 是 SCL 包，装在 /opt/rh/gcc-toolset-12，不覆盖系统 gcc
+# ---------- 先装 gcc-toolset-12（单独一步，去掉 --skip-broken，便于排错） ----------
+# 需要启用 EPOL 仓库（gcc-toolset-12 在 EPOL 里，不在 Base 里）
 RUN dnf makecache && \
-    dnf install -y --skip-broken \
-        gcc-toolset-12 \
+    dnf install -y dnf-plugins-core && \
+    dnf config-manager --set-enabled EPOL 2>/dev/null || true && \
+    dnf install -y gcc-toolset-12 && \
+    ls /opt/rh/gcc-toolset-12/root/usr/bin/gcc && \
+    ls /opt/rh/gcc-toolset-12/root/usr/bin/g++
+
+# ---------- 其余系统依赖 ----------
+RUN dnf makecache && \
+    dnf install -y \
         make \
         cmake ninja-build git wget unzip \
         gflags-devel glog-devel libibverbs-devel numactl-devel \
