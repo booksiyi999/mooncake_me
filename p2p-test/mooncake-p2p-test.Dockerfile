@@ -3,36 +3,29 @@
 # Mooncake P2P Store 测试编译镜像（openEuler + Ascend 910B）
 #
 # 基于 booksiyi999 验证过的 v0310 Dockerfile 改造，关键区别：
-#  - 装 gcc-toolset-12（SCL 方式），store 测试需要 C++20 特性
+#  - 基础镜像用 openEuler 24.03 LTS（自带 GCC 12.3.1），store 测试需要 C++20 特性
 #    (atomic_flag::test() / <semaphore>)，openEuler 22.03 默认 GCC 10 编不了
+#    openEuler 没有 gcc-toolset-12 SCL 包，故升基础镜像到 24.03（glibc 2.38 向后兼容）
 #  - 装 gtest（v0310 关了测试，本 PR 就是测测试代码）
 #  - gflags 编共享库（沿用 v0310 的修复，避免 flagfile 重复注册崩溃）
 #  - CANN / NPU 设备运行时从宿主机挂载，不打进镜像
 #
-# 完全不影响宿主机：gcc-toolset 装在容器镜像里，宿主机 GCC 不变
+# 完全不影响宿主机：所有改动都在容器镜像里
 #
 # 构建：podman build -t mooncake-p2p-test:latest -f mooncake-p2p-test.Dockerfile .
 # =============================================================================
 
-FROM docker.io/openeuler/openeuler:22.03-lts-sp3
+FROM docker.io/openeuler/openeuler:24.03-lts
 
 ENV LC_ALL=C.UTF-8 \
     LANG=C.UTF-8
 
-# ---------- 先装 gcc-toolset-12（单独一步，去掉 --skip-broken，便于排错） ----------
-# 需要启用 EPOL 仓库（gcc-toolset-12 在 EPOL 里，不在 Base 里）
-RUN dnf makecache && \
-    dnf install -y dnf-plugins-core && \
-    dnf config-manager --set-enabled EPOL 2>/dev/null || true && \
-    dnf install -y gcc-toolset-12 && \
-    ls /opt/rh/gcc-toolset-12/root/usr/bin/gcc && \
-    ls /opt/rh/gcc-toolset-12/root/usr/bin/g++
-
-# ---------- 其余系统依赖 ----------
+# ---------- 系统依赖（24.03 自带 GCC 12.3.1 + make） ----------
 RUN dnf makecache && \
     dnf install -y \
         make \
         cmake ninja-build git wget unzip \
+        gcc gcc-c++ \
         gflags-devel glog-devel libibverbs-devel numactl-devel \
         boost-devel openssl-devel hiredis-devel \
         libcurl-devel jsoncpp-devel libunwind-devel \
@@ -43,12 +36,7 @@ RUN dnf makecache && \
     pip3 install "cmake==3.31.6" && \
     rm -rf /var/cache/dnf
 
-# ---------- 默认启用 gcc-toolset-12 ----------
-# 用 ENV 永久生效（每条 RUN / 容器启动都用 GCC 12），不依赖 source
-ENV PATH=/opt/rh/gcc-toolset-12/root/usr/bin:$PATH \
-    LD_LIBRARY_PATH=/opt/rh/gcc-toolset-12/root/usr/lib64:/opt/rh/gcc-toolset-12/root/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH
-
-# 验证 GCC 版本
+# 验证 GCC 版本（应为 12.3.1）
 RUN gcc --version && g++ --version
 
 # ---------- 编译安装 yaml-cpp（openEuler 仓库可能缺 cmake config） ----------
