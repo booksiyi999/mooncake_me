@@ -24,6 +24,7 @@ ENV LC_ALL=C.UTF-8 \
 RUN dnf makecache && \
     dnf install -y --skip-broken \
         gcc-toolset-12 \
+        make \
         cmake ninja-build git wget unzip \
         gflags-devel glog-devel libibverbs-devel numactl-devel \
         boost-devel openssl-devel hiredis-devel \
@@ -34,6 +35,14 @@ RUN dnf makecache && \
         mpich mpich-devel && \
     pip3 install "cmake==3.31.6" && \
     rm -rf /var/cache/dnf
+
+# ---------- 默认启用 gcc-toolset-12 ----------
+# 用 ENV 永久生效（每条 RUN / 容器启动都用 GCC 12），不依赖 source
+ENV PATH=/opt/rh/gcc-toolset-12/root/usr/bin:$PATH \
+    LD_LIBRARY_PATH=/opt/rh/gcc-toolset-12/root/usr/lib64:/opt/rh/gcc-toolset-12/root/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH
+
+# 验证 GCC 版本
+RUN gcc --version && g++ --version
 
 # ---------- 编译安装 yaml-cpp（openEuler 仓库可能缺 cmake config） ----------
 WORKDIR /deps
@@ -52,17 +61,11 @@ RUN git clone https://github.com/gflags/gflags.git -b v2.2.2 --depth 1 && \
     make -j$(nproc) && make install
 
 # ---------- 编译安装 yalantinglibs 0.5.7（RPC 依赖） ----------
-# 注意：用 gcc-toolset-12 编译，保证与项目编译器一致
-RUN source /opt/rh/gcc-toolset-12/enable && \
-    git clone https://github.com/alibaba/yalantinglibs.git -b v0.5.7 --depth 1 && \
+RUN git clone https://github.com/alibaba/yalantinglibs.git -b v0.5.7 --depth 1 && \
     cd yalantinglibs && mkdir build && cd build && \
     cmake .. -DBUILD_EXAMPLES=OFF -DBUILD_BENCHMARK=OFF -DBUILD_UNIT_TESTS=OFF \
         -DCMAKE_INSTALL_PREFIX=/usr/local && \
     make -j$(nproc) && make install
-
-# ---------- 默认启用 gcc-toolset-12（进入容器即 GCC 12） ----------
-# source 进 /etc/profile.d，所有交互式 shell 自动加载
-RUN echo 'source /opt/rh/gcc-toolset-12/enable' > /etc/profile.d/enable-gcc-toolset-12.sh
 
 WORKDIR /workspace
 CMD ["/bin/bash"]
