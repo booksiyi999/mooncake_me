@@ -41,8 +41,8 @@ spec:
 
           rm -rf build && mkdir build && cd build
           cmake .. \
-            -DUSE_ASCEND_CACHE_TIER=ON \
-            -DUSE_ASCEND_DRAM_TIER=ON \
+            -DUSE_ASCEND_CACHE_TIER=OFF \
+            -DUSE_ASCEND_DRAM_TIER=OFF \
             -DWITH_STORE=ON \
             -DWITH_P2P_STORE=ON \
             -DUSE_HTTP=ON \
