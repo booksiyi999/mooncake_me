@@ -26,38 +26,8 @@ spec:
       image: localhost/mooncake-p2p-test:latest
       imagePullPolicy: Never
       workingDir: /workspace/Mooncake
-      # ---- 直接跑构建+测试（改 sleep infinity 可交互式调试） ----
-      command: ["/bin/bash", "-c"]
-      args:
-        - |
-          set -ex
-          # 加载 CANN 环境（每次新 shell 必须）
-          source /usr/local/Ascend/ascend-toolkit/set_env.sh 2>/dev/null || true
-          export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
-          gcc --version
-
-          cd /workspace/Mooncake
-          git submodule update --init --recursive
-
-          rm -rf build && mkdir build && cd build
-          cmake .. \
-            -DUSE_ASCEND_CACHE_TIER=OFF \
-            -DUSE_ASCEND_DRAM_TIER=OFF \
-            -DWITH_STORE=ON \
-            -DWITH_P2P_STORE=ON \
-            -DUSE_HTTP=ON \
-            -DBUILD_UNIT_TESTS=ON \
-            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-
-          # 只构建 PR 改的两个测试目标（省时间）
-          cmake --build . --target peer_client_test p2p_client_integration_test -j$(nproc)
-
-          echo "===== Build OK, running tests ====="
-          # 注意：测试二进制在 build/mooncake-store/tests/p2p/ 下
-          ./mooncake-store/tests/p2p/peer_client_test 2>&1 | tee /tmp/peer_client_test.log
-          echo "===== peer_client_test done ====="
-          ./mooncake-store/tests/p2p/p2p_client_integration_test 2>&1 | tee /tmp/p2p_integration_test.log
-          echo "===== p2p_client_integration_test done ====="
+      # ---- 交互式调试模式（sleep infinity，手动 exec 进去操作） ----
+      command: ["/bin/bash", "-c", "sleep infinity"]
 
       # ---- 必须 privileged：容器内驱动访问 NPU 设备需要特权 ----
       securityContext:
@@ -68,6 +38,15 @@ spec:
           value: "/usr/local/Ascend/ascend-toolkit/latest"
         - name: CMAKE_PREFIX_PATH
           value: "/usr/local"
+
+      # ---- 内存给足（pre-commit 装 clang-format 钩子需要 >4GB） ----
+      resources:
+        limits:
+          memory: "128Gi"
+          cpu: "32"
+        requests:
+          memory: "8Gi"
+          cpu: "4"
 
       # ---- 挂载整个 CANN 目录（只读，保证符号链接完整解析） ----
       volumeMounts:
