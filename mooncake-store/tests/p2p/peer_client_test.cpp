@@ -1046,7 +1046,7 @@ int main(int argc, char** argv) {
     // Cross-process tests use fork()/execv() which deadlocks under ASAN.
     // Skip all tests when built with -fsanitize=address.
     std::puts("[  SKIPPED ] ASAN detected, fork incompatible");
-    return 0;
+    return 77;
 #endif
 
     return RUN_ALL_TESTS();

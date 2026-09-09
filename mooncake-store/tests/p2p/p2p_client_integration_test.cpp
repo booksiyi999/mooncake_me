@@ -551,7 +551,9 @@ TEST_F(P2PClientIntegrationTest, PutOverwrite) {
         auto r = client_->Put(key, s, WriteRouteRequestConfig{});
         ASSERT_TRUE(r.has_value());
 
-        auto query = client_->Query(key, config);
+        // Query via client2_, which does not hold the key, so the request
+        // goes to the master and validates the master-side metadata.
+        auto query = client2_->Query(key, config);
         ASSERT_TRUE(query.has_value());
         ASSERT_EQ(query.value()->replicas.size(), 1u);
         auto p2p_proxy_descriptor =
@@ -569,8 +571,10 @@ TEST_F(P2PClientIntegrationTest, PutOverwrite) {
         ASSERT_TRUE(r.has_value());
 
         // due to the write operation is canceled,
-        // the object size of read route must not be changed
-        auto query = client_->Query(key, config);
+        // the object size of read route must not be changed.
+        // Query via client2_ (does not hold the key) so the check hits the
+        // master instead of the local DataManager of the writer.
+        auto query = client2_->Query(key, config);
         ASSERT_TRUE(query.has_value());
         ASSERT_EQ(query.value()->replicas.size(), 1u);
         auto p2p_proxy_descriptor =
@@ -1683,7 +1687,7 @@ int main(int argc, char** argv) {
     // Cross-process tests use fork()/execv() which deadlocks under ASAN.
     // Skip all tests when built with -fsanitize=address.
     std::puts("[  SKIPPED ] ASAN detected, fork incompatible");
-    return 0;
+    return 77;
 #endif
 
     return RUN_ALL_TESTS();
