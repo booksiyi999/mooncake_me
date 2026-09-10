@@ -31,6 +31,12 @@
 
 namespace mooncake::testing {
 
+// Exit code used to skip this test suite under ASAN. Must match
+// SKIP_RETURN_CODE in tests/p2p/CMakeLists.txt. 77 is the conventional
+// skip exit code (ctest / autotools convention). Same constant is defined
+// in peer_client_process_test_helper.h.
+constexpr int kAsanSkipExitCode = 77;
+
 inline std::string& P2PClientIntegrationTestBinaryPath() {
     static std::string path;
     return path;
