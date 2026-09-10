@@ -16,6 +16,7 @@
 
 #include "client_config_builder.h"
 #include "p2p/client/p2p_client_service.h"
+#include "test_exit_codes.h"
 #include "test_p2p_server_helpers.h"
 #include "types.h"
 #include "utils.h"
@@ -30,12 +31,6 @@
 #endif
 
 namespace mooncake::testing {
-
-// Exit code used to skip this test suite under ASAN. Must match
-// SKIP_RETURN_CODE in tests/p2p/CMakeLists.txt. 77 is the conventional
-// skip exit code (ctest / autotools convention). Same constant is defined
-// in peer_client_process_test_helper.h.
-constexpr int kAsanSkipExitCode = 77;
 
 inline std::string& P2PClientIntegrationTestBinaryPath() {
     static std::string path;

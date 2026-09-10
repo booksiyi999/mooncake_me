@@ -42,7 +42,7 @@ add_p2p_store_test(p2p_segment_manager_test p2p_segment_manager_test.cpp)
 
 # client side
 add_p2p_store_test_with_custom_main(p2p_client_integration_test p2p_client_integration_test.cpp)
-# 77 must match kAsanSkipExitCode in peer_client_process_test_helper.h
+# 77 must match kAsanSkipExitCode in tests/p2p/test_exit_codes.h
 set_tests_properties(p2p_client_integration_test PROPERTIES TIMEOUT 600 SKIP_RETURN_CODE 77)
 add_p2p_store_test(p2p_client_ha_test p2p_client_ha_test.cpp)
 add_p2p_store_test(p2p_client_http_endpoints_test p2p_client_http_endpoints_test.cpp)
@@ -50,7 +50,7 @@ add_p2p_store_test(p2p_client_manager_test p2p_client_manager_test.cpp)
 add_p2p_store_test(p2p_client_meta_test p2p_client_meta_test.cpp)
 add_p2p_store_test(p2p_register_concurrency_test p2p_register_concurrency_test.cpp)
 add_p2p_store_test_with_custom_main(peer_client_test peer_client_test.cpp)
-# 77 must match kAsanSkipExitCode in peer_client_process_test_helper.h
+# 77 must match kAsanSkipExitCode in tests/p2p/test_exit_codes.h
 set_tests_properties(peer_client_test PROPERTIES TIMEOUT 600 SKIP_RETURN_CODE 77)
 add_p2p_store_test(peer_client_perf_test peer_client_perf_test.cpp)
 add_p2p_store_test(client_rpc_service_test client_rpc_service_test.cpp)
