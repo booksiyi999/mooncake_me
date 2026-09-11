@@ -1043,8 +1043,11 @@ int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
 
 #if defined(__SANITIZE_ADDRESS__) || defined(ADDRESS_SANITIZER)
-    // Cross-process tests use fork()/execv() which deadlocks under ASAN.
-    // Skip all tests when built with -fsanitize=address.
+    // fork()/execv() deadlocks under ASAN (the forked child inherits
+    // sanitizer runtime locks held by threads that no longer exist, and
+    // LSan's tracer thread compounds this). Full rationale in
+    // test_exit_codes.h, which also documents the redis_chaos_test
+    // precedent for keeping fork-based tests out of ASAN runs.
     std::puts("[  SKIPPED ] ASAN detected, fork incompatible");
     return mooncake::testing::kAsanSkipExitCode;
 #endif
